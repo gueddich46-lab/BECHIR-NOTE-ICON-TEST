@@ -31,16 +31,34 @@ jobs:
           p=candidates[0]
           print('Using approved icon file:',p)
           im=Image.open(p).convert('RGBA')
-          # Full-bleed icon: use artwork as adaptive background, not a shrunken foreground.
-          # Android applies the launcher mask; no extra black padding is introduced.
+          # Keep the purple background full bleed, while pulling the notebook and
+          # gold pen slightly inside the Android mask's clipping boundary.
+          from PIL import ImageFilter
           for suffix,scale in [('mdpi',1),('hdpi',1.5),('xhdpi',2),('xxhdpi',3),('xxxhdpi',4)]:
             folder=f'app/src/main/res/mipmap-{suffix}'
             os.makedirs(folder,exist_ok=True)
             size=round(108*scale)
+            # Extend the original purple art edge-to-edge, rather than adding black padding.
             full=im.resize((size,size),Image.Resampling.LANCZOS)
-            full.save(f'{folder}/ic_background.png')
+            # Move the detailed drawing inward by 5% but keep the background full-sized.
+            # Blurred background fills any area around the drawing, including corners.
+            backdrop=full.filter(ImageFilter.GaussianBlur(radius=max(5,round(size*.11))))
+            inner=round(size*.90)
+            art=im.resize((inner,inner),Image.Resampling.LANCZOS)
+            offset=(size-inner)//2
+            # Feather only the outside edge of the overlay to avoid a visible seam.
+            mask=Image.new('L',(inner,inner),255)
+            from PIL import ImageDraw
+            feather=max(2,round(size*.025))
+            draw=ImageDraw.Draw(mask)
+            for i in range(feather):
+              v=round(255*(i+1)/feather)
+              draw.rectangle((i,i,inner-1-i,inner-1-i),outline=v,width=1)
+            mask=mask.filter(ImageFilter.GaussianBlur(radius=max(1,feather//2)))
+            backdrop.paste(art,(offset,offset),mask)
+            backdrop.save(f'{folder}/ic_background.png')
             legacy=round(48*scale)
-            im.resize((legacy,legacy),Image.Resampling.LANCZOS).save(f'{folder}/ic_launcher.png')
+            backdrop.resize((legacy,legacy),Image.Resampling.LANCZOS).save(f'{folder}/ic_launcher.png')
           os.makedirs('app/src/main/res/mipmap-anydpi-v26',exist_ok=True)
           with open('app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml','w') as out:
             out.write('<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@mipmap/ic_background"/><foreground android:drawable="@color/icon_clear"/></adaptive-icon>')
