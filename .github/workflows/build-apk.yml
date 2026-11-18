@@ -31,33 +31,22 @@ jobs:
           p=candidates[0]
           print('Using approved icon file:',p)
           im=Image.open(p).convert('RGBA')
-          # Preserve the approved new borderless artwork exactly; no dark-margin cropping.
-          for suffix,size in [('mdpi',48),('hdpi',72),('xhdpi',96),('xxhdpi',144),('xxxhdpi',192)]:
+          # Full-bleed icon: use artwork as adaptive background, not a shrunken foreground.
+          # Android applies the launcher mask; no extra black padding is introduced.
+          for suffix,scale in [('mdpi',1),('hdpi',1.5),('xhdpi',2),('xxhdpi',3),('xxxhdpi',4)]:
             folder=f'app/src/main/res/mipmap-{suffix}'
             os.makedirs(folder,exist_ok=True)
-            canvas=Image.new('RGBA',(size,size),(12,5,18,255))
-            # A slim outer margin on pre-Android-8 launchers.
-            inset=max(1,round(size*0.025))
-            inner=size-2*inset
-            art=im.resize((inner,inner),Image.Resampling.LANCZOS)
-            canvas.alpha_composite(art,(inset,inset))
-            canvas.save(f'{folder}/ic_launcher.png')
-          # Android adaptive icon safe area: center 66 of 108 units.
-          # The actual visible frame fills 65/66 of that area.
-          for suffix,scale in [('mdpi',1),('hdpi',1.5),('xhdpi',2),('xxhdpi',3),('xxxhdpi',4)]:
             size=round(108*scale)
-            folder=f'app/src/main/res/mipmap-{suffix}'
-            foreground=Image.new('RGBA',(size,size),(0,0,0,0))
-            inner=round(size*(65/108))
-            art=im.resize((inner,inner),Image.Resampling.LANCZOS)
-            foreground.alpha_composite(art,((size-inner)//2,(size-inner)//2))
-            foreground.save(f'{folder}/ic_foreground.png')
+            full=im.resize((size,size),Image.Resampling.LANCZOS)
+            full.save(f'{folder}/ic_background.png')
+            legacy=round(48*scale)
+            im.resize((legacy,legacy),Image.Resampling.LANCZOS).save(f'{folder}/ic_launcher.png')
           os.makedirs('app/src/main/res/mipmap-anydpi-v26',exist_ok=True)
           with open('app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml','w') as out:
-            out.write('<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/icon_background"/><foreground android:drawable="@mipmap/ic_foreground"/></adaptive-icon>')
+            out.write('<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@mipmap/ic_background"/><foreground android:drawable="@color/icon_clear"/></adaptive-icon>')
           os.makedirs('app/src/main/res/values',exist_ok=True)
           with open('app/src/main/res/values/icon_colors.xml','w') as out:
-            out.write('<resources><color name="icon_background">#0C0512</color></resources>')
+            out.write('<resources><color name="icon_clear">#00000000</color></resources>')
           PY
       - run: gradle assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
