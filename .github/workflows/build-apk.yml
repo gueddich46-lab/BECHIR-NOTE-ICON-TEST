@@ -31,7 +31,12 @@ jobs:
           for suffix,size in [('mdpi',48),('hdpi',72),('xhdpi',96),('xxhdpi',144),('xxxhdpi',192)]:
             folder=f'app/src/main/res/mipmap-{suffix}'
             os.makedirs(folder,exist_ok=True)
-            im.resize((size,size),Image.Resampling.LANCZOS).save(f'{folder}/ic_launcher.png')
+            canvas=Image.new('RGBA',(size,size),(15,7,24,255))
+            inset=round(size*0.16)
+            inner=size-2*inset
+            scaled=im.resize((inner,inner),Image.Resampling.LANCZOS)
+            canvas.alpha_composite(scaled,(inset,inset))
+            canvas.save(f'{folder}/ic_launcher.png')
           PY
       - run: gradle assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
