@@ -25,8 +25,11 @@ jobs:
           python - <<'PY'
           from PIL import Image
           import os
-          p='bechir-note-borderless.png'
-          if not os.path.isfile(p): raise SystemExit('Please upload bechir-note-borderless.png to repository root before building')
+          import glob
+          candidates=glob.glob('bechir-note-borderless.png') or glob.glob('file_00000000c3fc820aae*')
+          if not candidates: raise SystemExit('Missing approved borderless icon upload')
+          p=candidates[0]
+          print('Using approved icon file:',p)
           im=Image.open(p).convert('RGBA')
           # Preserve the approved new borderless artwork exactly; no dark-margin cropping.
           for suffix,size in [('mdpi',48),('hdpi',72),('xhdpi',96),('xxhdpi',144),('xxxhdpi',192)]:
