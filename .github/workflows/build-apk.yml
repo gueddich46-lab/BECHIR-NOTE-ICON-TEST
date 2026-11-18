@@ -37,6 +37,22 @@ jobs:
             scaled=im.resize((inner,inner),Image.Resampling.LANCZOS)
             canvas.alpha_composite(scaled,(inset,inset))
             canvas.save(f'{folder}/ic_launcher.png')
+          # Adaptive icons: original artwork remains unchanged, placed inside safe central zone.
+          for suffix,scale in [('mdpi',1),('hdpi',1.5),('xhdpi',2),('xxhdpi',3),('xxxhdpi',4)]:
+            size=round(108*scale)
+            folder=f'app/src/main/res/mipmap-{suffix}'
+            foreground=Image.new('RGBA',(size,size),(0,0,0,0))
+            # 60% central artwork fits Android's 66/108 safe region.
+            inner=round(size*0.60)
+            art=im.resize((inner,inner),Image.Resampling.LANCZOS)
+            foreground.alpha_composite(art,((size-inner)//2,(size-inner)//2))
+            foreground.save(f'{folder}/ic_foreground.png')
+          os.makedirs('app/src/main/res/mipmap-anydpi-v26',exist_ok=True)
+          with open('app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml','w') as out:
+            out.write('<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/icon_background"/><foreground android:drawable="@mipmap/ic_foreground"/></adaptive-icon>')
+          os.makedirs('app/src/main/res/values',exist_ok=True)
+          with open('app/src/main/res/values/icon_colors.xml','w') as out:
+            out.write('<resources><color name="icon_background">#15091E</color></resources>')
           PY
       - run: gradle assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
