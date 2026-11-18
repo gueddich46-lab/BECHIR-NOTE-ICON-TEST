@@ -21,29 +21,44 @@ jobs:
           gradle-version: '8.7'
       - name: Prepare exact source icon for launcher densities
         run: |
-          python -m pip install pillow
+          python -m pip install pillow numpy
           python - <<'PY'
           from PIL import Image
           import os
           p='bechir-note-icon-original-crop(1)-2.png'
           if not os.path.isfile(p): raise SystemExit('Missing uploaded icon image in repository root')
           im=Image.open(p).convert('RGBA')
+          # Trim dark baked-in margins; keep the original drawing and glow unchanged.
+          from PIL import ImageChops
+          import numpy as np
+          a=np.asarray(im.convert('RGB'))
+          bright=a.max(axis=2)
+          colorful=a.max(axis=2)-a.min(axis=2)
+          visible=(bright>72)&((colorful>25)|(bright>115))
+          ys,xs=np.where(visible)
+          if len(xs)>100:
+            pad=max(2,round(min(im.size)*0.018))
+            box=(max(0,int(xs.min())-pad),max(0,int(ys.min())-pad),
+                 min(im.width,int(xs.max())+pad+1),min(im.height,int(ys.max())+pad+1))
+            im=im.crop(box)
+          print('Visible icon bounds cropped to',im.size)
           for suffix,size in [('mdpi',48),('hdpi',72),('xhdpi',96),('xxhdpi',144),('xxxhdpi',192)]:
             folder=f'app/src/main/res/mipmap-{suffix}'
             os.makedirs(folder,exist_ok=True)
-            canvas=Image.new('RGBA',(size,size),(15,7,24,255))
-            inset=round(size*0.085)
+            canvas=Image.new('RGBA',(size,size),(12,5,18,255))
+            # A slim outer margin on pre-Android-8 launchers.
+            inset=max(1,round(size*0.025))
             inner=size-2*inset
-            scaled=im.resize((inner,inner),Image.Resampling.LANCZOS)
-            canvas.alpha_composite(scaled,(inset,inset))
+            art=im.resize((inner,inner),Image.Resampling.LANCZOS)
+            canvas.alpha_composite(art,(inset,inset))
             canvas.save(f'{folder}/ic_launcher.png')
-          # Adaptive icons: original artwork remains unchanged, placed inside safe central zone.
+          # Android adaptive icon safe area: center 66 of 108 units.
+          # The actual visible frame fills 65/66 of that area.
           for suffix,scale in [('mdpi',1),('hdpi',1.5),('xhdpi',2),('xxhdpi',3),('xxxhdpi',4)]:
             size=round(108*scale)
             folder=f'app/src/main/res/mipmap-{suffix}'
             foreground=Image.new('RGBA',(size,size),(0,0,0,0))
-            # 60% central artwork fits Android's 66/108 safe region.
-            inner=round(size*0.60)
+            inner=round(size*(65/108))
             art=im.resize((inner,inner),Image.Resampling.LANCZOS)
             foreground.alpha_composite(art,((size-inner)//2,(size-inner)//2))
             foreground.save(f'{folder}/ic_foreground.png')
@@ -52,7 +67,7 @@ jobs:
             out.write('<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/icon_background"/><foreground android:drawable="@mipmap/ic_foreground"/></adaptive-icon>')
           os.makedirs('app/src/main/res/values',exist_ok=True)
           with open('app/src/main/res/values/icon_colors.xml','w') as out:
-            out.write('<resources><color name="icon_background">#15091E</color></resources>')
+            out.write('<resources><color name="icon_background">#0C0512</color></resources>')
           PY
       - run: gradle assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
