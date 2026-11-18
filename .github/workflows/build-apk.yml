@@ -32,7 +32,7 @@ jobs:
             folder=f'app/src/main/res/mipmap-{suffix}'
             os.makedirs(folder,exist_ok=True)
             canvas=Image.new('RGBA',(size,size),(15,7,24,255))
-            inset=round(size*0.025)
+            inset=round(size*0.085)
             inner=size-2*inset
             scaled=im.resize((inner,inner),Image.Resampling.LANCZOS)
             canvas.alpha_composite(scaled,(inset,inset))
