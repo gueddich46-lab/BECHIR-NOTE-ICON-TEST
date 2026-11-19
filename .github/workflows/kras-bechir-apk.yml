@@ -28,6 +28,44 @@ jobs:
           unzip -q kras_bechir_android_project.zip -d kras-app
           test -f kras-app/app/src/main/assets/index.html
           test -f kras-app/app/build.gradle
+      - name: Update Android compatibility and generate launcher icon
+        working-directory: kras-app
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('app/build.gradle')
+          s=p.read_text()
+          s=re.sub(r'targetSdk\\s+\\d+', 'targetSdk 35', s)
+          s=re.sub(r'versionCode\\s+\\d+', 'versionCode 2', s)
+          p.write_text(s)
+          PY
+          python -m pip install --quiet cairosvg
+          python - <<'PY'
+          from pathlib import Path
+          import cairosvg
+          svg='''<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+          <defs><linearGradient id="p" x2="1" y2="1"><stop stop-color="#a53bef"/><stop offset="1" stop-color="#32105c"/></linearGradient></defs>
+          <rect width="512" height="512" rx="94" fill="url(#p)"/>
+          <rect x="17" y="17" width="478" height="478" rx="80" fill="none" stroke="#f4c766" stroke-width="14"/>
+          <rect x="123" y="94" width="286" height="330" rx="20" fill="#31104d" opacity=".5"/>
+          <rect x="108" y="82" width="286" height="330" rx="20" fill="#fff6e8" stroke="#edca8a" stroke-width="8"/>
+          <path d="M156 164H349 M156 205H349 M156 246H349 M156 287H349 M156 328H349" stroke="#dccbb8" stroke-width="5"/>
+          <path d="M116 124h-27m27 49h-27m27 49h-27m27 49h-27m27 49h-27" stroke="#f1d37d" stroke-width="13" stroke-linecap="round"/>
+          <path d="M335 350L407 230L427 242L354 365L324 386Z" fill="#1d1832" stroke="#dcae4e" stroke-width="9"/>
+          <path d="M324 386L337 355L353 365Z" fill="#f2cb66"/>
+          <circle cx="252" cy="221" r="52" fill="#6b239b" opacity=".9"/>
+          <path d="M235 189h42v65h-42z M220 202h72" stroke="#fff1d7" stroke-width="8" fill="none" stroke-linejoin="round"/>
+          </svg>'''
+          for density,size in [('mdpi',48),('hdpi',72),('xhdpi',96),('xxhdpi',144),('xxxhdpi',192)]:
+            folder=Path('app/src/main/res/mipmap-'+density);folder.mkdir(parents=True,exist_ok=True)
+            cairosvg.svg2png(bytestring=svg.encode(),write_to=str(folder/'ic_launcher.png'),output_width=size,output_height=size)
+          Path('app/src/main/res/drawable').mkdir(parents=True,exist_ok=True)
+          cairosvg.svg2png(bytestring=svg.encode(),write_to='app/src/main/res/drawable/kras_icon.png',output_width=512,output_height=512)
+          manifest=Path('app/src/main/AndroidManifest.xml')
+          s=manifest.read_text().replace('<application ', '<application android:icon="@drawable/kras_icon" ')
+          manifest.write_text(s)
+          PY
       - name: Build Kras Bechir APK
         working-directory: kras-app
         run: gradle assembleDebug --no-daemon
