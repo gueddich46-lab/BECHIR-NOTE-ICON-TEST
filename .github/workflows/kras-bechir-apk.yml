@@ -1,0 +1,35 @@
+name: Build Kras Bechir APK
+on:
+  push:
+    branches: [kras-bechir-build]
+    paths:
+      - '.github/workflows/kras-bechir-apk.yml'
+      - 'kras_bechir_android_project.zip'
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Unpack Kras Bechir Android project
+        run: |
+          mkdir -p kras-app
+          unzip -q kras_bechir_android_project.zip -d kras-app
+          test -f kras-app/app/src/main/assets/index.html
+          test -f kras-app/app/build.gradle
+      - name: Build Kras Bechir APK
+        working-directory: kras-app
+        run: gradle assembleDebug --no-daemon
+      - name: Upload Kras Bechir APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: kras-bechir-apk
+          path: kras-app/app/build/outputs/apk/debug/app-debug.apk
