@@ -90,6 +90,21 @@ jobs:
               text=text.replace('<application ', '<application android:icon="@drawable/kras_icon" ')
           manifest.write_text(text)
           PY
+      - name: Reserve Android status bar space
+        working-directory: kras-app
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/src/main/assets/index.html')
+          html=p.read_text(encoding='utf-8')
+          css='<style id="kras-android-safe-area">html{box-sizing:border-box}body{padding-top:max(48px,env(safe-area-inset-top,0px))!important;box-sizing:border-box}</style>'
+          if 'kras-android-safe-area' not in html:
+              if '</head>' in html:
+                  html=html.replace('</head>',css+'</head>',1)
+              else:
+                  html=css+html
+              p.write_text(html,encoding='utf-8')
+          PY
       - name: Build Kras Bechir APK
         working-directory: kras-app
         run: gradle assembleDebug --no-daemon
